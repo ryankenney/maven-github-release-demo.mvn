@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.github.ryankenney</groupId>
+	<artifactId>maven-github-release-demo</artifactId>
+	<version>1.3</version>
+	<packaging>jar</packaging>
+	<name>maven-github-release-demo</name>
+	<description>A demo project for tagging/posting github from maven projects</description>
+
+	<properties>
+		<!-- Normal boilerplate stuff. Non-crtical. -->
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<maven.compiler.source>1.8</maven.compiler.source>
+		<maven.compiler.target>1.8</maven.compiler.target>
+
+		<!--
+			The server entry in settings.xml containing the credentials 
+			to use with when pushing maven artifacts to github
+			(com.github.github:site-maven-plugin below).
+		-->
+		<github.global.server>github</github.global.server>
+
+		<!-- Convenience variables -->
+		<github-owner>ryankenney</github-owner>
+		<github-repo>maven-github-release-demo</github-repo>
+		<temp-mvn-repo>${project.build.directory}/mvn-repo</temp-mvn-repo>
+	</properties>
+
+	<scm>
+		<connection>scm:git:git@github.com:${github-owner}/${github-repo}.git</connection>
+		<developerConnection>scm:git:git@github.com:${github-owner}/${github-repo}.git</developerConnection>
+		<url>https://github.com/${github-owner}/${github-repo}/tree/${project.scm.tag}</url>
+		<tag>release/1.3</tag>
+	</scm>
+
+	<distributionManagement>
+		<!--
+			A filesystem repo stored in the target directory
+		
+			By letting maven deploy here, we can follow-up with the github plugin
+			to upload the artifacts. (GitHub doens't support the Maven deploy protocol.)
+		 --> 
+		<repository>
+			<id>internal.repo</id>
+			<name>Temporary Staging Repository</name>
+			<url>file://${temp-mvn-repo}</url>
+		</repository>
+	</distributionManagement>
+
+	<build>
+		<plugins>
+			<plugin>
+				<artifactId>maven-deploy-plugin</artifactId>
+				<version>2.8.1</version>
+				<configuration>
+					<!-- 
+						Deploy sites files (jars for maven) to a directory on disk
+						
+						NOTE: We're writing releases and snapshots to different directories,
+						then including only releases in the github plugin config that follows. This prevents
+						snapshots from ending up in the github repo. If you want both snapshots
+						and releases in the repo, replace the following two entries with a single
+						"altDeploymentRepository" path, and then point "site-maven-plugin"
+						at the single path.
+					-->
+					<altReleaseDeploymentRepository>internal.repo::default::file://${temp-mvn-repo}/releases</altReleaseDeploymentRepository>
+					<altSnapshotDeploymentRepository>internal.repo::default::file://${temp-mvn-repo}/snapshots</altSnapshotDeploymentRepository>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>com.github.github</groupId>
+				<artifactId>site-maven-plugin</artifactId>
+				<version>0.12</version>
+				<configuration>
+					<!-- Merge new artifacts with existing repo (always true if we're pushing to a maven repo) -->
+					<merge>true</merge>
+					<!-- Git commit message -->
+					<message>Maven artifacts for ${project.artifactId}-${project.version}</message>
+					<!-- Disable webpage processing (maven "site" pages) -->
+					<noJekyll>true</noJekyll>
+					<!--
+						Local directory to read from
+
+						NOTE: We only publish releases in this example.
+						Snapshots will fail with error if attempted.
+						See notes in "maven-deploy-plugin" above.
+					-->
+					<outputDirectory>${temp-mvn-repo}/releases</outputDirectory>
+					<!-- Remote branch name to publish to -->
+					<branch>refs/heads/mvn-repo</branch>
+					<includes>
+						<include>**/*</include>
+					</includes>
+					<!-- GitHub username -->
+					<repositoryOwner>${github-owner}</repositoryOwner>
+					<!--
+						GitHub repo name
+						
+						Here we're assuming every "my-repo" has an equivalent
+						"my-repo.mvn" repo for maven artifacts, but you could push
+						it to the same repo.
+					-->
+					<repositoryName>${github-repo}.mvn</repositoryName>
+				</configuration>
+				<executions>
+					<!--
+						Apply the site-maven-plugin's "site" goal to the
+						build's "deploy" phase (needed earlier in the build process)
+					-->
+					<execution>
+						<goals>
+							<goal>site</goal>
+						</goals>
+						<phase>deploy</phase>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-release-plugin</artifactId>
+				<version>2.5.3</version>
+				<configuration>
+					<!-- Specify a custom release tag naming convention -->
+					<tagNameFormat>release/@{project.version}</tagNameFormat>
+				</configuration>
+				<dependencies>
+					<!--
+						Force a version of maven-scm-provider-gitexe that actually
+						works correctly (committing to git).
+						
+						See: https://stackoverflow.com/a/20657721
+					 -->
+					<dependency>
+						<groupId>org.apache.maven.scm</groupId>
+						<artifactId>maven-scm-provider-gitexe</artifactId>
+						<version>1.9.4</version>
+					</dependency>
+				</dependencies>
+			</plugin>
+
+		</plugins>
+	</build>
+
+</project>
