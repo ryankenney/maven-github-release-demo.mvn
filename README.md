@@ -9,6 +9,6 @@ You can access the contents of this repo by updating your Maven `settings.xml` t
 	<repositories>
 		<repository>
 			<id>cac-agent</id>
-			<url>https://raw.github.com/ryankenney/maven-github-release-demo/mvn-repo/</url>
+			<url>https://raw.github.com/ryankenney/maven-github-release-demo.mvn/mvn-repo/</url>
 		</repository>
 	</repositories>
